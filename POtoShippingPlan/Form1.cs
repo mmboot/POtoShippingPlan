@@ -39,6 +39,9 @@ namespace POtoShippingPlan
         private void button1_Click_1(object sender, EventArgs e)
         {
 
+            label2.Text = "";
+            label2.Visible = false;
+
             String PONumber = textBox1.Text.Trim();
             StringBuilder SPFile = SPHeader(PONumber);            
             String path = @"S:\AMAZON\Shipping\ShippingPlanPrep\FBA" + PONumber + ".txt";
@@ -93,6 +96,9 @@ namespace POtoShippingPlan
                     rdr.Close();
                 }
             }
+
+            label2.Text = "Done with " + textBox1.Text;
+            label2.Visible = true;
 
         }
 
