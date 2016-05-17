@@ -5,6 +5,7 @@ using System.Text;
 using System.Windows.Forms;
 using System.Data.SqlClient;
 using System.Configuration;
+using System.Linq;
 
 namespace POtoShippingPlan
 {
@@ -13,6 +14,8 @@ namespace POtoShippingPlan
         public Form1()
         {
             InitializeComponent();
+            label2.Text = "";
+            label2.Visible = false;
         }
 
 
@@ -53,6 +56,12 @@ namespace POtoShippingPlan
 
             String connectionString = ConfigurationManager.ConnectionStrings["conn"].ConnectionString;
 
+
+            var checkedButton = this.Controls.OfType<RadioButton>()
+                                      .FirstOrDefault(r => r.Checked);
+
+            String SizeStandard = checkedButton.Text.Trim();
+
             try
             {
                 conn = new SqlConnection(connectionString);
@@ -61,7 +70,9 @@ namespace POtoShippingPlan
                 SqlCommand cmd = new SqlCommand("[dbo].[GetPOLineItems]", conn);
                 cmd.CommandType = CommandType.StoredProcedure;
                 cmd.Parameters.Add("@PONumber", SqlDbType.VarChar);
+                cmd.Parameters.Add("@SizeStandard", SqlDbType.VarChar);
                 cmd.Parameters["@PONumber"].Value = PONumber;
+                cmd.Parameters["@SizeStandard"].Value = SizeStandard;
                 cmd.ExecuteNonQuery();
                 
                 cmd = new SqlCommand("[dbo].[GetShippingPlanLineItem]", conn);
