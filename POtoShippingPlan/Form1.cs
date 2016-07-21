@@ -20,44 +20,49 @@ namespace POtoShippingPlan
             label2.Visible = false;
         }
 
+        private void ImportFromAccess(string AccessTable, string SQLTable, string AccessTableConnectionString)
+        {
+            string connpo = ConfigurationManager.ConnectionStrings[AccessTableConnectionString].ConnectionString;
+            OleDbConnection connPO = new OleDbConnection(connpo);
+            connPO.Open();
+
+            string cmd = "SELECT [" + AccessTable + "].* FROM [" + AccessTable + "]";
+            OleDbCommand Cmd = new OleDbCommand(cmd, connPO);
+            OleDbDataReader rdr = Cmd.ExecuteReader();
+            DataTable dataTable = new DataTable(SQLTable);
+            dataTable.Load(rdr);
+
+            String connectionString = ConfigurationManager.ConnectionStrings["conn"].ConnectionString;
+            SqlConnection conn = new SqlConnection(connectionString);
+            conn.Open();
+            SqlCommand sqlCmd = new SqlCommand("TRUNCATE TABLE[dbo].[" + SQLTable + "]", conn);
+            sqlCmd.CommandType = CommandType.Text;
+            sqlCmd.ExecuteNonQuery();
+
+            SqlBulkCopy bulkCopy = new SqlBulkCopy(connectionString);
+
+            foreach (DataColumn col in dataTable.Columns)
+            {
+                bulkCopy.ColumnMappings.Add(col.ColumnName, col.ColumnName);
+            }
+            bulkCopy.BulkCopyTimeout = 600;
+            bulkCopy.DestinationTableName = "["+ SQLTable + "]";
+            bulkCopy.WriteToServer(dataTable);
+
+            rdr.Close();
+            connPO.Close();
+            conn.Close();
+            bulkCopy.Close();
+        }
+
         private bool isDataGood()
         {
             bool ret = true;
             try
             {
-                string connpo = ConfigurationManager.ConnectionStrings["connPO"].ConnectionString;
-                OleDbConnection connPO = new OleDbConnection(connpo);
-                connPO.Open();
-
-                string cmd = "SELECT [Purchase Detail].* FROM [Purchase Detail]";
-                OleDbCommand Cmd = new OleDbCommand(cmd, connPO);
-                OleDbDataReader rdr = Cmd.ExecuteReader();
-                DataTable dataTable = new DataTable("Purchase_Detail");
-                dataTable.Load(rdr);
-
-
-                String connectionString = ConfigurationManager.ConnectionStrings["conn"].ConnectionString;
-                SqlConnection conn = new SqlConnection(connectionString);
-                conn.Open();
-                SqlCommand sqlCmd = new SqlCommand("TRUNCATE TABLE[dbo].[Purchase_Detail]", conn);
-                sqlCmd.CommandType = CommandType.Text;
-                sqlCmd.ExecuteNonQuery();
-
-                SqlBulkCopy bulkCopy = new SqlBulkCopy(connectionString);
-
-                foreach (DataColumn col in dataTable.Columns)
-                {
-                    bulkCopy.ColumnMappings.Add(col.ColumnName, col.ColumnName);
-                }
-                bulkCopy.BulkCopyTimeout = 600;
-                bulkCopy.DestinationTableName = "[Purchase_Detail]";
-                bulkCopy.WriteToServer(dataTable);
-
-
-                rdr.Close();
-                connPO.Close();
-                conn.Close();
-                bulkCopy.Close();
+                ImportFromAccess("Purchase Detail", "Purchase_Detail", "connRIPODET");
+                ImportFromAccess("InventoryMaster", "InventoryMaster", "connRIINVMAS");
+                ImportFromAccess("SizeTypes", "SizeTypes", "connRISIZE");
             }
             catch
             {
@@ -68,8 +73,6 @@ namespace POtoShippingPlan
             }
             return ret;
         }
-
-
 
         private StringBuilder SPHeader(String PONumber)
         {
@@ -93,11 +96,9 @@ namespace POtoShippingPlan
 
         private void button1_Click_1(object sender, EventArgs e)
         {
-
             label2.Text = "";
             label2.Visible = false;
-
-
+            
             if (isDataGood())
             { 
 
@@ -110,13 +111,7 @@ namespace POtoShippingPlan
                 String SKU = "";
                 String Quantity = "";
 
-                String connectionString = ConfigurationManager.ConnectionStrings["conn"].ConnectionString;
-
-
-                var checkedButton = this.Controls.OfType<RadioButton>()
-                                          .FirstOrDefault(r => r.Checked);
-
-                String SizeStandard = checkedButton.Text.Trim();
+                String connectionString = ConfigurationManager.ConnectionStrings["conn"].ConnectionString;                
 
                 try
                 {
@@ -125,10 +120,8 @@ namespace POtoShippingPlan
 
                     SqlCommand cmd = new SqlCommand("[dbo].[GetPOLineItems]", conn);
                     cmd.CommandType = CommandType.StoredProcedure;
-                    cmd.Parameters.Add("@PONumber", SqlDbType.VarChar);
-                    cmd.Parameters.Add("@SizeStandard", SqlDbType.VarChar);
-                    cmd.Parameters["@PONumber"].Value = PONumber;
-                    cmd.Parameters["@SizeStandard"].Value = SizeStandard;
+                    cmd.Parameters.Add("@PONumber", SqlDbType.VarChar);                    
+                    cmd.Parameters["@PONumber"].Value = PONumber;                    
                     cmd.ExecuteNonQuery();
                 
                     cmd = new SqlCommand("[dbo].[GetShippingPlanLineItem]", conn);
